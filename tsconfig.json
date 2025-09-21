@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "module": "esnext",
+    "target": "es2020",
+    "jsx": "preserve",
+    "declaration": true,
+    "emitDeclarationOnly": false,
+    "outDir": "dist",
+    "strict": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "isolatedModules": true,
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "lib": ["ES2020", "DOM"]
+  },
+  "include": ["src", "test"],
+  "exclude": ["dist", "node_modules", "**/*.spec.*"]
+}

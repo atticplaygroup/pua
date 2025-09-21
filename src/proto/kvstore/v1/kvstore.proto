@@ -1,0 +1,279 @@
+syntax = "proto3";
+
+option go_package = "github.com/atticplaygroup/pkv/pkg/proto/gen/go/kvstore/v1;kvstore";
+
+import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "buf/validate/validate.proto";
+
+package kvstore.v1;
+
+service KvStoreService {
+  rpc CreateValue(CreateValueRequest) returns (CreateValueResponse) {
+    option (google.api.http) = {
+      post: "/v1/values:create"
+      body: "value"
+    };
+  }
+
+  rpc CreateStreamValue(CreateStreamValueRequest) returns (CreateStreamValueResponse) {
+    option (google.api.http) = {
+      post: "/v1/{parent=accounts/*/streams/*}/values:create"
+      body: "value"
+    };
+  }
+
+  rpc GetValue(GetValueRequest) returns (GetValueResponse) {
+    option (google.api.http) = {
+      get: "/v1/{name=values/*}"
+    };
+  }
+
+  rpc GetStreamValue(GetStreamValueRequest) returns (GetStreamValueResponse) {
+    option (google.api.http) = {
+      get: "/v1/{name=accounts/*/streams/*/values/*}"
+    };
+  }
+
+  rpc ListStreamValues(ListStreamValuesRequest) returns (ListStreamValuesResponse) {
+    option (google.api.http) = {
+      get: "/v1/{parent=accounts/*/streams/*}/values"
+    };
+  }
+
+  rpc ProlongValue(ProlongValueRequest) returns (ProlongValueResponse) {
+    option (google.api.http) = {
+      post: "/v1/{name=accounts/*/values/*}:prolong"
+      body: "*"
+    };
+  }
+
+  rpc SearchCid(SearchCidRequest) returns (SearchCidResponse) {
+    option (google.api.http) = {
+      get: "/v1/searchCid"
+    };
+  }
+
+  rpc SearchInstance(SearchInstanceRequest) returns (SearchInstanceResponse) {
+    option (google.api.http) = {
+      get: "/v1/SearchInstance"
+    };
+  }
+
+  rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse) {
+    option (google.api.http) = {
+      post: "/v1/sessions:create"
+      body: "*"
+    };
+  }
+
+  rpc RegisterInstance(RegisterInstanceRequest) returns (RegisterInstanceResponse) {
+    option (google.api.http) = {
+      post: "/v1/instance:register"
+      body: "*"
+    };
+  };
+
+  rpc Ping(PingRequest) returns (PingResponse) {
+    option (google.api.http) = {
+      get: "/v1/ping"
+    };
+  }
+
+  rpc DelegatedRouting(DelegatedRoutingRequest) returns (DelegatedRoutingResponse) {
+    option (google.api.http) = {
+      get: "/routing/v1/providers/{cid=*}"
+    };
+  }
+}
+
+message ProviderResult {
+  string context_id = 1 [ json_name = "ContextID" ];
+  string metadata = 2 [ json_name = "Metadata" ];
+  Instance provider = 3 [ json_name = "Provider" ];
+}
+
+message MultihashResult {
+  string multihash = 1 [ json_name = "Multihash" ];
+  repeated ProviderResult provider_results = 2 [ json_name = "ProviderResults" ];
+}
+
+message DelegatedRoutingResponse {
+  repeated Instance providers = 1 [ json_name = "Providers" ];
+  // repeated MultihashResult multihash_results = 1 [ json_name = "MultihashResults" ];
+}
+
+message DelegatedRoutingRequest {
+  string cid = 1;
+}
+
+message PingRequest {
+  int64 dummy = 1;
+}
+
+message PingResponse {
+  string pong = 1;
+}
+
+message GlobalLink {
+  string name = 1;
+  string maintainer = 2;
+  string version = 3;
+  string display_name = 4;
+  string description = 5;
+  string signature = 6;
+}
+
+message VirtualService {
+  GlobalLink behavior_link = 1;
+  GlobalLink variant_link = 2;
+}
+
+enum CoinType {
+  COIN_TYPE_UNSPECIFIED = 0;
+  COIN_TYPE_SUI = 1;
+}
+
+enum CoinEnvironment {
+  COIN_ENVIRONMENT_UNSPECIFIED = 0;
+  COIN_ENVIRONMENT_MAINNET = 1;
+  COIN_ENVIRONMENT_TESTNET = 2;
+  COIN_ENVIRONMENT_DEVNET = 3;
+  COIN_ENVIRONMENT_LOCALNET = 4;
+}
+
+message ProviderAdvertise {
+  Instance provider_instance = 1;
+  VirtualService virtual_service = 2;
+  repeated string cids = 3;
+  int64 price = 4;
+  CoinType coin_type = 5;
+  CoinEnvironment coin_environment = 6;
+  repeated Instance exchanges = 7;
+  google.protobuf.Timestamp expire_time = 8;
+  google.protobuf.Timestamp update_time = 9;
+  string signature = 10;
+  // virtual service dependent extra information
+  string pricing_details = 11;
+}
+
+message SearchCidRequest {
+  string cid = 1;
+}
+
+message SearchCidResponse {
+  repeated VirtualService virtual_services = 1;
+  repeated ProviderAdvertise storage_instances = 2;
+  // repeated Instance index_instances = 3;
+}
+
+message SearchInstanceRequest {
+  VirtualService virtual_service = 1;
+}
+
+message SearchInstanceResponse {
+  VirtualService virtual_service = 1;
+  repeated ProviderAdvertise instance_price_info = 2;
+  // repeated Instance index_instances = 3;
+}
+
+message RegisterInstanceRequest {
+  ProviderAdvertise advertisement = 1;
+}
+
+message RegisterInstanceResponse {
+}
+
+message Instance {
+  string did = 1;
+  string peer_id = 2 [ json_name = "ID" ];
+  repeated string multiaddrs = 3 [ json_name = "Addrs" ];
+}
+
+message CreateValueRequest {
+  // string parent = 1;
+  bytes value = 2 [(google.api.field_behavior) = REQUIRED];
+  google.protobuf.Duration ttl = 3;
+}
+
+message CreateValueResponse {
+  string name = 1;
+  google.protobuf.Duration ttl = 2;
+}
+
+message CreateStreamValueRequest {
+  string parent = 1;
+  bytes value = 2 [(google.api.field_behavior) = REQUIRED];
+  // google.protobuf.Duration ttl = 2; // The TTL is defined per stream
+}
+
+message CreateStreamValueResponse {
+  string name = 1;
+  google.protobuf.Duration ttl = 2;
+}
+
+message GetStreamValueRequest {
+  string name = 1;
+}
+
+message StreamValueInfo {
+  bytes value = 1;
+  string stream_entry_id = 2;
+}
+
+message GetStreamValueResponse {
+  StreamValueInfo stream_value_info = 1;
+}
+
+message ListStreamValuesRequest {
+  string parent = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+
+message ListStreamValuesResponse {
+  repeated StreamValueInfo stream_value_info = 1;
+  string page_token = 2;
+}
+
+message GetValueRequest {
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+}
+
+message GetValueResponse {
+  bytes value = 1;
+}
+
+message ProlongValueRequest {
+  string name = 1 [(google.api.field_behavior) = IDENTIFIER];
+  google.protobuf.Duration ttl = 2;
+  int64 max_size = 3 [(buf.validate.field).int64.gt = 0];
+}
+
+message ProlongValueResponse {
+  string name = 1;
+  google.protobuf.Duration ttl = 2;
+}
+
+message Session {
+  string session_id = 1;
+  int64 balance = 2;
+}
+
+// TODO: Use the same proto file
+enum JwtUsage {
+  JWT_USAGE_UNSPECIFIED = 0;
+  JWT_USAGE_CREATE_SESSION = 1;
+  JWT_USAGE_MANAGE_SESSION = 2;
+}
+
+message CreateSessionRequest {
+  string jwt = 1;
+}
+
+message CreateSessionResponse {
+  Session session = 1;
+  string jwt = 2;
+}

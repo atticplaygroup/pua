@@ -1,0 +1,74 @@
+{
+  "name": "@atticplaygroup/pua",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Paid User Agent Library to control spending and choose parties in PAID services automatically",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@10.12.4",
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.8.0",
+    "@connectrpc/connect": "^2.1.0",
+    "@connectrpc/connect-web": "^2.1.0",
+    "@helia/block-brokers": "^4.2.3",
+    "@helia/http": "^2.2.0",
+    "@helia/interface": "^5.4.0",
+    "@helia/ipns": "^8.2.4",
+    "@helia/routers": "^3.1.3",
+    "@helia/verified-fetch": "^3.2.0",
+    "@ipshipyard/node-datachannel": "^0.26.6",
+    "@libp2p/crypto": "^5.1.7",
+    "@libp2p/interface": "^2.10.5",
+    "@libp2p/peer-id": "^5.1.8",
+    "@libp2p/webrtc": "^5.2.24",
+    "@multiformats/multiaddr-to-uri": "^12.0.0",
+    "@mysten/sui": "^1.35.0",
+    "codegenv2": "link:@bufbuild/protobuf/codegenv2",
+    "dids": "^5.0.3",
+    "key-did-provider-ed25519": "^4.0.2",
+    "key-did-resolver": "^4.0.0",
+    "kubo-rpc-client": "^5.2.0",
+    "libp2p": "^2.9.0",
+    "multiformats": "^13.3.7",
+    "tslib": "^2.8.1",
+    "uint8arrays": "^5.1.0",
+    "wkt": "link:@bufbuild/protobuf/wkt"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@eslint/js": "^9.30.1",
+    "@helia/delegated-routing-v1-http-api-server": "^4.0.6",
+    "@helia/unixfs": "^5.0.4",
+    "@types/node": "^24.4.0",
+    "@typescript-eslint/eslint-plugin": "^8.36.0",
+    "@typescript-eslint/parser": "^8.36.0",
+    "eslint": "^9.30.1",
+    "eslint-config-prettier": "^10.1.5",
+    "fastify": "^5.4.0",
+    "jsdom": "^26.1.0",
+    "ts-node": "^10.9.2",
+    "tsup": "^8.5.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

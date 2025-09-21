@@ -1,0 +1,8 @@
+version: v2
+plugins:
+  - remote: buf.build/bufbuild/es
+    out: src/proto/gen/es
+    include_imports: true
+    opt:
+      - target=ts+js
+      - import_extension=js
