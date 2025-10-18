@@ -1,6 +1,6 @@
 {
   "name": "@atticplaygroup/pua",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "Paid User Agent Library to control spending and choose parties in PAID services automatically",
   "main": "./dist/index.cjs",
