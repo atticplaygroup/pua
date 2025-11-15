@@ -2,3 +2,4 @@ onlyBuiltDependencies:
   - '@ipshipyard/node-datachannel'
   - esbuild
   - iso-constants
+  - keccak

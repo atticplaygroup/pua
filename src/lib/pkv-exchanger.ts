@@ -3,14 +3,28 @@ import { Keypair } from '@mysten/sui/cryptography';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { Transaction } from '@mysten/sui/transactions';
 import type { LoginResponse } from '../proto/gen/es/exchange/v1/exchange_pb.js';
+import keccak256 from 'keccak256';
+import { MerkleTree } from 'merkletreejs';
+import { digest } from 'multiformats';
+import { codecs } from 'multiformats/basics';
 import {
   ExchangeService,
   PaymentEnvironment,
 } from '../proto/gen/es/exchange/v1/exchange_pb.js';
+import {
+  Codec,
+  KvStoreService,
+} from '../proto/gen/es/kvstore/v1/kvstore_pb.js';
 import type { PeerInfo } from '@libp2p/interface';
 import { encodeDID } from 'key-did-provider-ed25519';
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
+import { CID } from 'multiformats';
+import { Helia } from '@helia/interface';
+import * as dagPb from '@ipld/dag-pb';
+import * as raw from 'multiformats/codecs/raw';
+import { argon2id } from 'hash-wasm';
+import { fromByteArray as b64encode, toByteArray as b64decode} from 'base64-js';
 
 interface ExchangeAccount {
   accountId: bigint;
@@ -27,14 +41,37 @@ export interface InstanceAndAccessToken {
   instanceInfo: PeerInfo;
 }
 
+function asArrayBuffer(data: ArrayBuffer | ArrayBufferView): ArrayBuffer {
+  if (data instanceof ArrayBuffer) return data.slice(0);
+  const view = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+  return view.slice().buffer;
+}
+
+export function computeMerkleRoot(cidStrings: string[]): string {
+  const cids = cidStrings.map((x) => CID.parse(x));
+  const bytes = cids.map((x) => keccak256(Buffer.from(x.bytes)));
+  const mt = new MerkleTree(bytes, keccak256, {
+    sortPairs: false,
+    fillDefaultHash: () => Buffer.alloc(32, 0),
+  });
+  const keccak256MultiHash = 0x1b;
+  const cidV1 = CID.createV1(
+    codecs.raw.code,
+    digest.create(keccak256MultiHash, mt.getRoot()),
+  );
+  return cidV1.toString();
+}
+
 export class ExchangeClient {
   keypair: Keypair;
+  mnemonics: string;
   suiNetwork: PaymentEnvironment;
 
   client: SuiClient;
   constructor(suiNetwork: PaymentEnvironment, mnemonics: string) {
     this.suiNetwork = suiNetwork;
     let rpcUrl: string;
+    this.mnemonics = mnemonics;
     this.keypair = Ed25519Keypair.deriveKeypair(mnemonics);
     if (this.suiNetwork == PaymentEnvironment.DEVNET) {
       rpcUrl = getFullnodeUrl('devnet');
@@ -108,10 +145,51 @@ export class ExchangeClient {
       startTime: challengeResponse.startTime!,
     };
   }
+  async derivePassword(): Promise<string> {
+    // TODO: read from user yaml not this hard-coded public one
+    const argon2Salt = Uint8Array.from([
+      0x5e, 0xc5, 0x57, 0xbd, 0x6f, 0x5d, 0xbb, 0xa2,
+      0xf2, 0xba, 0x8c, 0xf7, 0x31, 0xc6, 0xc2, 0x5b,
+      0xb8, 0x2a, 0x5e, 0x94, 0x52, 0x10, 0xae, 0x6e,
+      0xe7, 0xe1, 0xa2, 0x06, 0xff, 0xa8, 0xe7, 0x5d,
+    ]);
+    // TODO: read from another field of user yaml
+    const hkdfSalt = argon2Salt;
+    const info = new TextEncoder().encode('password')
+    const ikm = await argon2id({
+      password: this.mnemonics,
+      salt: argon2Salt,
+      parallelism: 1,
+      iterations: 3,
+      memorySize: 64 * 1024,
+      hashLength: 32,
+      outputType: 'binary',
+    });
+
+    const baseKey = await crypto.subtle.importKey(
+      "raw",
+      asArrayBuffer(ikm),
+      "HKDF",
+      false,
+      ['deriveBits']
+    );
+
+    const bits = await crypto.subtle.deriveBits(
+      {
+        name: 'HKDF',
+        hash: 'SHA-256',
+        salt: hkdfSalt,
+        info,
+      },
+      baseKey,
+      256,
+    );
+    return b64encode(new Uint8Array(bits));
+  }
   async deriveUsernameAndPassword(): Promise<[string, string]> {
     return [
       encodeDID(this.keypair!.getPublicKey().toRawBytes()),
-      'test_password', // TODO: Use some KDF
+      await this.derivePassword(),
     ];
   }
   async registerExchangeAccount(
@@ -197,5 +275,56 @@ export class ExchangeClient {
       throw new Error(`empty token`);
     }
     return response.token;
+  }
+  async putRawBytes(
+    exchangeHost: string,
+    providerDid: string,
+    value: Uint8Array,
+    codec: Codec,
+    ttlSeconds: bigint,
+  ): Promise<string> {
+    // FIXME: get from index or exchange
+    const providerHost = 'http://localhost:50051'
+    const sessionCreationJwt = await this.getExchangeQuotaToken(exchangeHost, providerDid, BigInt(10_000_000));
+    const client = createClient(
+      KvStoreService,
+      createConnectTransport({
+        baseUrl: providerHost,
+      }),
+    );
+    const response = await client.createSession({
+      jwt: sessionCreationJwt,
+    });
+    if (!response.jwt) {
+      throw new Error(`got empty session token`);
+    }
+    const headers = new Headers();
+    headers.set('Authorization', `Bearer ${response.jwt}`);
+    const resourceName = await client.createValue(
+      {
+        codec: codec,
+        value: value,
+        ttl: {
+          seconds: ttlSeconds,
+        },
+      },
+      { headers: headers },
+    );
+    return resourceName.name;
+  }
+  async putMerkleDag(host: string, providerDid: string, helia: Helia, cid: CID, ttlSeconds: bigint): Promise<string[]> {
+    let resourceNames = [];
+    const block = await helia.blockstore.get(cid, { offline: true });
+    if (cid.code === raw.code) {
+      resourceNames.push(await this.putRawBytes(host, providerDid, block, 1, ttlSeconds));
+    } else {
+      resourceNames.push(await this.putRawBytes(host, providerDid, block, 2, ttlSeconds));
+      const pbNode = dagPb.decode(block);
+      for (const link of pbNode.Links) {
+        const childResourceNames = await this.putMerkleDag(host, providerDid, helia, link.Hash, ttlSeconds);
+        resourceNames.concat(childResourceNames);
+      }
+    }
+    return resourceNames;
   }
 }

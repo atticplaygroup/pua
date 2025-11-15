@@ -41,19 +41,17 @@ sql-migrate up
   ${workspace}/bin/gateway &
 )
 
-TEMP_DIR=$(mktemp -d)
-
 PREX_URL=localhost:3001
 PKV_URL=localhost:3000
 export PREX_URL
 sleep 3
 curl --fail -s "http://${PREX_URL}/v1/ping" | jq .pong || exit 1
 
-bash ${scripts_dir}/register-account.sh ${TEMP_DIR}/seller.yml
+bash ${scripts_dir}/register-account.sh ${workspace}/scripts/seller.yml
 
-SELLER_DID=$(prex client account -c=${TEMP_DIR}/seller.yml | jq -r .username)
+SELLER_DID=$(prex client account -c=${workspace}/scripts/seller.yml | jq -r .username)
 QUANTITY=100
-SESSION_CREATION_TOKEN=$(bash ${scripts_dir}/buy-token.sh ${TEMP_DIR}/seller.yml ${SELLER_DID} ${QUANTITY} | jq -r .token)
+SESSION_CREATION_TOKEN=$(bash ${scripts_dir}/buy-token.sh ${workspace}/scripts/seller.yml ${SELLER_DID} ${QUANTITY} | jq -r .token)
 
 SESSION_JWT=$(curl --fail -s -H "Content-Type: application/json" -d '{
   "jwt": "'"${SESSION_CREATION_TOKEN}"'"
@@ -74,7 +72,7 @@ python3 -c 'contents = [
 
 RESOURCE=$(grpcurl -plaintext \
   -H "Authorization: Bearer ${SESSION_JWT}" \
-  -d '{"value": "'$(cat /tmp/test-file | base64 -w 0)'", "ttl": "24h"}' \
+  -d '{"value": "'$(cat /tmp/test-file | base64 -w 0)'", "ttl": "24h", "codec": 1}' \
   localhost:50051 kvstore.v1.KvStoreService/CreateValue)
 
 [ -n "${RESOURCE}" ] || exit 1
@@ -100,12 +98,20 @@ curl --fail -s -H "Content-Type: application/json" \
           "version": "v0.1.0"
         },
         "variantLink": {
-          "name": "bafkreifx77vplgjib3jfpdobqcuwwyz2xmpvoxyaqgbz5qqzj4r4tyyzcu",
+          "name": "bafkreidy4rgd74uu56zt22bruidwzyicqqakgfguhtb3dkuvo7kg4z6sri",
           "maintainer": "did:example:proposer",
           "version": "v0.1.0"
         }
       },
-      "cids": ["bafkreiepisknsjkso33wxxta5i7voiyzulfrghh2uryxyd5ptin7v5rbva"],
+      "cids": [
+        "bafkreiavcs6vzwpfmzbgmv7tqznntxt5o2hrnlyljnl4pdtn4rtk7ux664",
+        "bafkreiepisknsjkso33wxxta5i7voiyzulfrghh2uryxyd5ptin7v5rbva",
+        "bafkreiep756fqmdgp2klajv25feea4txal7uuixiskz676d62oma7gndzu",
+        "bafkreibaxl6z3plfboy4ufbfdultkkn7dyvoouv4o2luhhddcmxtsjyfue",
+        "bafkreicigr2y3oxhbj3ruqv47guz34arud62uhdeh7n6k7sh6ic55w6lgq",
+        "bafybeievlej43fqr3jrfqmkviqdmnkdf7hv3fa22ll4ln7m6czjc22q5xe",
+        "bafkreiczu3hchqxcnpt4mjvktbo6qtn4uo5zqazgzkvt26scve222oz4ke"
+      ],
       "price": 100,
       "coinType": 1,
       "coinEnvironment": 4,

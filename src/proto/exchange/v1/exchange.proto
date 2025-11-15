@@ -53,7 +53,7 @@ service ExchangeService {
   //   option (google.api.http) = {
   //     get: "/v1/{name=accounts/*/withdraws/*}"
   //   };
-  //   option (google.api.method_signature) = "name";    
+  //   option (google.api.method_signature) = "name";
   // }
 
   // rpc CancelWithdraw(CancelWithdrawRequest) returns (google.protobuf.Empty) {
